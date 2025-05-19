@@ -2,7 +2,8 @@ import { io, Socket } from "socket.io-client";
 import { UserState } from "./user";
 
 export async function connectServer(): Promise<Socket> {
-  const socket = io("wss://24.199.108.142:5555");
+  const socket = io("https://server-chocopie.digital:5555");
+  // const socket = io("https://127.0.0.1:5555");
   return new Promise((accept, reject) => {
     socket.on("connect", () => {
       accept(socket);
