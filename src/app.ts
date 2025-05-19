@@ -1,5 +1,5 @@
-import { init, update } from "./game";
-import { tryCatch } from "./utils/try-catch";
+import { init, update } from "./game/game";
+import { tryCatch } from "./game/utils/try-catch";
 
 // begin the game loop here
 (async () => {
