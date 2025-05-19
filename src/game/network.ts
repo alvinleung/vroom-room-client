@@ -41,7 +41,7 @@ export function markDirty<T>(state: SharedState<T>) {
 }
 
 let lastUpdate = performance.now();
-export function emitUserState(
+export function emitUserStateThrottled(
   socket: Socket,
   user: SharedState<UserState>,
   // update freaquency 60 fps

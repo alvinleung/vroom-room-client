@@ -9,7 +9,7 @@ import {
 import {
   connectServer,
   fetchOthers,
-  emitUserState,
+  emitUserStateThrottled,
   markDirty,
   SharedState,
 } from "./network";
@@ -70,7 +70,7 @@ export async function init() {
   serverSideUsers.forEach((user) => other.set(user.id, user));
 
   // add the user to the server
-  emitUserState(socket, self);
+  emitUserStateThrottled(socket, self, 0);
 
   return { socket, self, other, context, canvas, keyboard };
 }
@@ -108,7 +108,7 @@ export function update({
   }
 
   // upload changes
-  if (self._dirty) emitUserState(socket, self);
+  if (self._dirty) emitUserStateThrottled(socket, self, 0);
 
   // render user
   other.forEach((user) => renderUser(context, user));
