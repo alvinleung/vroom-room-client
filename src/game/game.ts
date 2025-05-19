@@ -6,7 +6,13 @@ import {
   colors,
   animals,
 } from "unique-names-generator";
-import { connectServer, fetchOthers, emitUserState, markDirty, SharedState } from "./network";
+import {
+  connectServer,
+  fetchOthers,
+  emitUserState,
+  markDirty,
+  SharedState,
+} from "./network";
 import { createResizableCanvas } from "./utils/canvas";
 import { getRandomColor } from "./utils/get-random-color";
 import { createKeyboardProvider, getInputAxis } from "./input";
@@ -19,12 +25,9 @@ export async function init() {
   console.log("connecting...");
 
   // try connecting to server
-  const protocol = window.location.protocol.replace(":", "") as
-    | "http"
-    | "https";
-  const [socket, err] = await tryCatch(connectServer(protocol));
-  if (err) throw "Unable to establish connection: " + err;
+  const [socket, err] = await tryCatch(connectServer());
 
+  if (err) throw "Unable to establish connection: " + err;
   console.log("connected");
 
   const self: SharedState<UserState> = {
@@ -52,15 +55,15 @@ export async function init() {
     console.log(`user ${user.id} added`);
   });
 
-  socket.on("user-update", (user: UserState)=> {
+  socket.on("user-update", (user: UserState) => {
     console.log(`user ${user.id} update receive`);
     const targetUser = other.get(user.id);
-    if(!targetUser) {
+    if (!targetUser) {
       console.log("attempting to update non-existant user ", user.id);
       return;
     }
     Object.assign(targetUser, user);
-  })
+  });
 
   // populate the map with users
   const serverSideUsers = await fetchOthers(socket);
@@ -78,15 +81,18 @@ export function update({
   context,
   canvas,
   keyboard,
-  socket
+  socket,
 }: Awaited<ReturnType<typeof init>>) {
-  
   // clear canavs for previous rendering
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   // capture input
-  const inputXAxis = getInputAxis(keyboard, "ArrowRight", "ArrowLeft") || getInputAxis(keyboard, "d", "a");
-  const inputYAxis = getInputAxis(keyboard, "ArrowDown", "ArrowUp") || getInputAxis(keyboard, "s", "w");
+  const inputXAxis =
+    getInputAxis(keyboard, "ArrowRight", "ArrowLeft") ||
+    getInputAxis(keyboard, "d", "a");
+  const inputYAxis =
+    getInputAxis(keyboard, "ArrowDown", "ArrowUp") ||
+    getInputAxis(keyboard, "s", "w");
 
   const charSpeed = 4;
 
@@ -102,7 +108,7 @@ export function update({
   }
 
   // upload changes
-  if(self._dirty) emitUserState(socket, self);
+  if (self._dirty) emitUserState(socket, self);
 
   // render user
   other.forEach((user) => renderUser(context, user));

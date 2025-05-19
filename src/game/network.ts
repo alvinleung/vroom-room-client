@@ -1,12 +1,17 @@
 import { io, Socket } from "socket.io-client";
 import { UserState } from "./user";
 
-export async function connectServer(
-  protocol: "https" | "http" = "http",
-): Promise<Socket> {
+export async function connectServer(): Promise<Socket> {
   // const socket = io("https://server-chocopie.digital:5555");
-  const host = "localhost";
+  // const host = "localhost";
+  // const port = 5555;
+
+  const isProd = window.location.hostname !== "localhost";
+  const protocol = window.location.protocol.replace(":", "") as
+    | "http"
+    | "https";
   const port = 5555;
+  const host = isProd ? "server-chocopie.digital" : "localhost";
 
   const connectionUrl = `${protocol}://${host}:${port}`;
   const socket = io(connectionUrl);
