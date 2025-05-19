@@ -1,4 +1,3 @@
-import { io, Socket } from "socket.io-client";
 import { tryCatch } from "./utils/try-catch";
 import { UserState } from "./user";
 import {
@@ -18,7 +17,8 @@ export async function init() {
   console.log("connecting...");
 
   // try connecting to server
-  const [socket, err] = await tryCatch(connectServer());
+  const protocol = window.location.protocol.replace(":", "") as "http"|"https";
+  const [socket, err] = await tryCatch(connectServer(protocol));
   if (err) throw "Unable to establish connection: " + err;
 
   console.log("connected");
@@ -38,8 +38,14 @@ export async function init() {
   const other = new Map<string, UserState>();
 
   // handle deleting user
-  socket.on("delete-user", (user: UserState) => {
+  socket.on("user-delete", (user: UserState) => {
     other.delete(user.id);
+    console.log(`user ${user.id} deleted`);
+  });
+
+  socket.on("user-add", (user:UserState)=> {
+    other.set(user.id, user);
+    console.log(`user ${user.id} added`);
   });
 
   // populate the map with users
