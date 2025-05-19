@@ -1,14 +1,16 @@
 import { io, Socket } from "socket.io-client";
 import { UserState } from "./user";
 
-export async function connectServer(protocol: "https" | "http" = "http"): Promise<Socket> {
+export async function connectServer(
+  protocol: "https" | "http" = "http",
+): Promise<Socket> {
   // const socket = io("https://server-chocopie.digital:5555");
   const host = "localhost";
   const port = 5555;
 
   const connectionUrl = `${protocol}://${host}:${port}`;
   const socket = io(connectionUrl);
-  
+
   return new Promise((accept, reject) => {
     socket.on("connect", () => {
       accept(socket);
@@ -19,13 +21,37 @@ export async function connectServer(protocol: "https" | "http" = "http"): Promis
   });
 }
 
-
-export function updateSelf(socket: Socket, user: Partial<UserState>) {
-  socket.emit("user-update", user);
-}
-
 export async function fetchOthers(socket: Socket): Promise<UserState[]> {
   return new Promise<UserState[]>((resolve) => {
     socket.emit("fetch-others", resolve);
   });
+}
+
+export type SharedState<T> = T & {
+  _dirty?: boolean;
+};
+
+export function markDirty<T>(state: SharedState<T>) {
+  state._dirty = true;
+}
+
+let lastUpdate = performance.now();
+export function emitUserState(
+  socket: Socket,
+  user: SharedState<UserState>,
+  // update freaquency 60 fps
+  throttle: number = 1000 / 60,
+) {
+  const now = performance.now();
+  if (now - lastUpdate < throttle) {
+    // ignore update
+    return false;
+  }
+
+  lastUpdate = now;
+
+  socket.emit("emit-user-update", user);
+  user._dirty = false;
+
+  return true;
 }
