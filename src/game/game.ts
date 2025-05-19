@@ -108,7 +108,7 @@ export function update({
   }
 
   // upload changes
-  if (self._dirty) emitUserStateThrottled(socket, self, 0);
+  if (self._dirty) emitUserStateThrottled(socket, self, 1000 / 30);
 
   // render user
   other.forEach((user) => renderUser(context, user));
