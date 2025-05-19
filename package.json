@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "start": "parcel src/index.html --https --cert cert/cert.pem --key cert/key.pem",
+    "build": "parcel build src/index.html"
+  },
+  "dependencies": {
+    "parcel": "^2.15.1",
+    "socket.io-client": "^4.8.1",
+    "unique-names-generator": "^4.7.1"
+  }
+}
