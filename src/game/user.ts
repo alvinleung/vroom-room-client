@@ -1,5 +1,3 @@
-import { ActiveKeyMap } from "./input";
-
 export interface UserState {
   id: string;
   name: string;
@@ -8,12 +6,10 @@ export interface UserState {
   velX: number;
   velY: number;
   color: string;
-  message: string;  
+  message: string;
 }
 
-
-
-export function renderUser(context:CanvasRenderingContext2D, user:UserState) {
+export function renderUser(context: CanvasRenderingContext2D, user: UserState) {
   context.fillStyle = user.color;
   context.fillRect(user.x, user.y, 24, 24);
 }

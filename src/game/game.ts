@@ -8,10 +8,10 @@ import {
 } from "unique-names-generator";
 import {
   connectServer,
-  fetchOthers,
-  emitUserStateThrottled,
-  markDirty,
+  initNetworkState,
+  markNeedUpdate,
   SharedState,
+  syncNetworkState,
 } from "./network";
 import { createResizableCanvas } from "./utils/canvas";
 import { getRandomColor } from "./utils/get-random-color";
@@ -24,11 +24,16 @@ export async function init() {
   const keyboard = createKeyboardProvider();
   console.log("connecting...");
 
+  // the global list of other users
+  const other = new Map<string, UserState>();
+
   // try connecting to server
   const [socket, err] = await tryCatch(connectServer());
 
   if (err) throw "Unable to establish connection: " + err;
   console.log("connected");
+
+  const incomingStateMutation = await initNetworkState(socket, other);
 
   const self: SharedState<UserState> = {
     id: socket.id!,
@@ -40,39 +45,17 @@ export async function init() {
     velY: 0,
     message: "",
   };
+  markNeedUpdate(self);
 
-  // the global list of other users
-  const other = new Map<string, UserState>();
-
-  // handle deleting user
-  socket.on("user-delete", (user: UserState) => {
-    other.delete(user.id);
-    console.log(`user ${user.id} deleted`);
-  });
-
-  socket.on("user-add", (user: UserState) => {
-    other.set(user.id, user);
-    console.log(`user ${user.id} added`);
-  });
-
-  socket.on("user-update", (user: UserState) => {
-    console.log(`user ${user.id} update receive`);
-    const targetUser = other.get(user.id);
-    if (!targetUser) {
-      console.log("attempting to update non-existant user ", user.id);
-      return;
-    }
-    Object.assign(targetUser, user);
-  });
-
-  // populate the map with users
-  const serverSideUsers = await fetchOthers(socket);
-  serverSideUsers.forEach((user) => other.set(user.id, user));
-
-  // add the user to the server
-  emitUserStateThrottled(socket, self, 0);
-
-  return { socket, self, other, context, canvas, keyboard };
+  return {
+    socket,
+    self,
+    other,
+    context,
+    canvas,
+    keyboard,
+    incomingStateMutation,
+  };
 }
 
 export function update({
@@ -82,6 +65,7 @@ export function update({
   canvas,
   keyboard,
   socket,
+  incomingStateMutation,
 }: Awaited<ReturnType<typeof init>>) {
   // clear canavs for previous rendering
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -104,11 +88,17 @@ export function update({
 
   // detect changes
   if (self.velX != 0 || self.velY != 0) {
-    markDirty(self);
+    markNeedUpdate(self);
   }
 
-  // upload changes
-  if (self._dirty) emitUserStateThrottled(socket, self, 1000 / 30);
+  syncNetworkState(
+    socket,
+    {
+      self,
+      other,
+    },
+    incomingStateMutation,
+  );
 
   // render user
   other.forEach((user) => renderUser(context, user));
