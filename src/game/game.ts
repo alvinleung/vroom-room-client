@@ -6,26 +6,20 @@ import {
   colors,
   animals,
 } from "unique-names-generator";
-import {
-  connectServer,
-  initNetworkState,
-  markNeedUpdate,
-  SharedState,
-  syncNetworkState,
-} from "./network";
+import { connectServer, SharedState, StateSync } from "./network";
 import { createResizableCanvas } from "./utils/canvas";
 import { getRandomColor } from "./utils/get-random-color";
-import { createKeyboardProvider, getInputAxis } from "./input";
+import { Input } from "./input";
 
 export async function init() {
   // setup the basic canvas
   const { canvas, context } = createResizableCanvas();
 
-  const keyboard = createKeyboardProvider();
+  const keyboard = Input.createKeyboardProvider();
   console.log("connecting...");
 
   // the global list of other users
-  const other = new Map<string, UserState>();
+  const allUsers = new Map<string, UserState>();
 
   // try connecting to server
   const [socket, err] = await tryCatch(connectServer());
@@ -33,7 +27,13 @@ export async function init() {
   if (err) throw "Unable to establish connection: " + err;
   console.log("connected");
 
-  const incomingStateMutation = await initNetworkState(socket, other);
+  // populate the map with initial state
+  const serverSideUsers = await StateSync.fetchWorld(socket);
+  serverSideUsers.forEach((user) => {
+    allUsers.set(user.id, user);
+  });
+
+  const incomingStateMutations = await StateSync.createMutationQueue(socket);
 
   const self: SharedState<UserState> = {
     id: socket.id!,
@@ -45,38 +45,39 @@ export async function init() {
     velY: 0,
     message: "",
   };
-  markNeedUpdate(self);
+  allUsers.set(self.id, self);
+  StateSync.markNeedUpdate(self);
 
   return {
     socket,
     self,
-    other,
+    allUsers,
     context,
     canvas,
     keyboard,
-    incomingStateMutation,
+    incomingStateMutations,
   };
 }
 
 export function update({
   self,
-  other,
+  allUsers,
   context,
   canvas,
   keyboard,
   socket,
-  incomingStateMutation,
+  incomingStateMutations,
 }: Awaited<ReturnType<typeof init>>) {
   // clear canavs for previous rendering
   context.clearRect(0, 0, canvas.width, canvas.height);
 
   // capture input
   const inputXAxis =
-    getInputAxis(keyboard, "ArrowRight", "ArrowLeft") ||
-    getInputAxis(keyboard, "d", "a");
+    Input.getAxis(keyboard, "ArrowRight", "ArrowLeft") ||
+    Input.getAxis(keyboard, "d", "a");
   const inputYAxis =
-    getInputAxis(keyboard, "ArrowDown", "ArrowUp") ||
-    getInputAxis(keyboard, "s", "w");
+    Input.getAxis(keyboard, "ArrowDown", "ArrowUp") ||
+    Input.getAxis(keyboard, "s", "w");
 
   const charSpeed = 4;
 
@@ -88,19 +89,12 @@ export function update({
 
   // detect changes
   if (self.velX != 0 || self.velY != 0) {
-    markNeedUpdate(self);
+    StateSync.markNeedUpdate(self);
   }
 
-  syncNetworkState(
-    socket,
-    {
-      self,
-      other,
-    },
-    incomingStateMutation,
-  );
+  StateSync.applyIncomingMutations(socket, allUsers, incomingStateMutations);
+  StateSync.emitLocalMutations(socket, allUsers);
 
   // render user
-  other.forEach((user) => renderUser(context, user));
-  renderUser(context, self);
+  allUsers.forEach((user) => renderUser(context, user));
 }
